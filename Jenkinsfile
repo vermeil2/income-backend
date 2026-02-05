@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Nexus VM 주소 (trailing slash 제거 권장 - Broken pipe 이슈 완화)
-        NEXUS_URL = 'http://192.168.106.130:8081/repository/income'
+        NEXUS_URL = 'http://192.168.106.130:8081/repository/maven-snapshots/
     }
     
     stages {
