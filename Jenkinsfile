@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Nexus VM 주소 (예: http://192.168.x.x:8081/repository/maven-snapshots/)
-        NEXUS_URL = 'http://NEXUS_IP:8081/repository/maven-snapshots/'
+        NEXUS_URL = 'http://192.168.106.130:8081/repository/income/'
     }
     
     stages {
