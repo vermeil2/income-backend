@@ -1,21 +1,40 @@
 pipeline {
     agent any
+
+    environment {
+        // Nexus VM 주소 (예: http://192.168.x.x:8081/repository/maven-snapshots/)
+        NEXUS_URL = 'http://NEXUS_IP:8081/repository/maven-snapshots/'
+    }
     
     stages {
         stage('Checkout') {
             steps {
-                // Jenkins Job에서 설정한 SCM 정보 사용
                 checkout scm
             }
         }
         
-        stage('Gradle Build') {
+        stage('Build & Test') {
             steps {
-                // gradlew 실행 권한 부여 (리눅스 Jenkins용)
                 sh 'chmod +x gradlew'
-                // Gradle 빌드 (테스트 제외)
-                sh './gradlew clean build -x test'
+                sh './gradlew clean build'
             }
-        }        
+        }
+
+        stage('Publish to Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-credentials',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh """
+                        ./gradlew publish \
+                            -PnexusUrl=${env.NEXUS_URL} \
+                            -PnexusUsername=\$NEXUS_USER \
+                            -PnexusPassword=\$NEXUS_PASS
+                    """
+                }
+            }
+        }
     }
 }
