@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Nexus VM 주소 (예: http://192.168.x.x:8081/repository/maven-snapshots/)
-        NEXUS_URL = 'http://192.168.106.130:8081/repository/income/'
+        // Nexus VM 주소 (trailing slash 제거 권장 - Broken pipe 이슈 완화)
+        NEXUS_URL = 'http://192.168.106.130:8081/repository/income'
     }
     
     stages {
@@ -28,7 +28,8 @@ pipeline {
                     passwordVariable: 'NEXUS_PASS'
                 )]) {
                     sh """
-                        ./gradlew publish \
+                        export GRADLE_OPTS="-Dhttp.connectionTimeout=120000 -Dhttp.socketTimeout=120000 -Dhttp.keepAlive=false"
+                        ./gradlew publish --no-daemon \
                             -PnexusUrl=${env.NEXUS_URL} \
                             -PnexusUsername=\$NEXUS_USER \
                             -PnexusPassword=\$NEXUS_PASS
