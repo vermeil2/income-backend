@@ -3,6 +3,7 @@ plugins {
     kotlin("plugin.spring") version "2.2.21"
     id("org.springframework.boot") version "4.0.2"
     id("io.spring.dependency-management") version "1.1.7"
+    `maven-publish`
 }
 
 group = "com.example"
@@ -41,4 +42,27 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// Nexus 배포용 (Jenkins에서 -PnexusUrl=... -PnexusUsername=... -PnexusPassword=... 로 전달)
+publishing {
+    publications {
+        create<MavenPublication>("bootJava") {
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+            artifact(tasks.bootJar.get())
+        }
+    }
+    repositories {
+        maven {
+            val nexusUrl = project.findProperty("nexusUrl") as String? ?: "http://localhost:8081/repository/maven-snapshots/"
+            url = uri(nexusUrl)
+            isAllowInsecureProtocol = true
+            credentials {
+                username = project.findProperty("nexusUsername") as String? ?: ""
+                password = project.findProperty("nexusPassword") as String? ?: ""
+            }
+        }
+    }
 }
