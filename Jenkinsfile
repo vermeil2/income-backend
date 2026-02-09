@@ -17,9 +17,10 @@ pipeline {
             steps {
                 script {
                     def branch = env.BRANCH_NAME ?: env.GIT_BRANCH?.replace('origin/', '') ?: 'dev'
-                    def isMain = branch == 'main'
+                    // main 푸시 또는 태그 푸시(tags/v1.0.0 형태) → 릴리즈
+                    def isRelease = branch == 'main' || branch.startsWith('tags/')
 
-                    if (isMain) {
+                    if (isRelease) {
                         // main: git 태그 기반 버전 (v1.0.0 형태에서 v 제거, 태그 없으면 fallback)
                         env.PUBLISH_VERSION = sh(
                             script: """
