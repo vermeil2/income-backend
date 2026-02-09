@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.example"
-version = "0.0.1-SNAPSHOT"
+version = project.findProperty("version") as String? ?: "0.0.1-SNAPSHOT"
 description = "toss-backend"
 
 java {
