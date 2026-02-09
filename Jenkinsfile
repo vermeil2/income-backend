@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Nexus 기본 주소 (호스트 부분만, 리포지토리 경로는 브랜치별로 분기)
-        NEXUS_BASE = 'http://192.168.106.130:8081'
+        NEXUS_BASE = 'http://nexus.internal:8081'
     }
     
     stages {
