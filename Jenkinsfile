@@ -5,7 +5,7 @@ pipeline {
         // Nexus 기본 주소 (호스트 부분만, 리포지토리 경로는 브랜치별로 분기)
         NEXUS_BASE = 'http://nexus.internal:8081'
         // Harbor (이미지 푸시용) - 필요 시 Jenkins 환경변수로 덮어쓰기
-        HARBOR_URL = 'http://pjjharbor.com'
+        HARBOR_URL = 'http://pjjharbor.com:80'
         HARBOR_PROJECT = 'income-backend'
         ARTIFACT_GROUP = 'com/example'
         ARTIFACT_ID = 'toss-backend'
@@ -110,9 +110,9 @@ pipeline {
                 )]) {
                     sh """
                         set -e
-                        IMAGE_TAG="${env.ARTIFACT_ID}:${env.PUBLISH_VERSION}-${env.BUILD_NUMBER}"
-                        IMAGE_FULL="${env.HARBOR_URL}/${env.HARBOR_PROJECT}/\${IMAGE_TAG}"
                         HARBOR_HOST=\$(echo "${env.HARBOR_URL}" | sed 's|https\\?://||')
+                        IMAGE_TAG="${env.ARTIFACT_ID}:${env.PUBLISH_VERSION}-${env.BUILD_NUMBER}"
+                        IMAGE_FULL="\${HARBOR_HOST}/${env.HARBOR_PROJECT}/\${IMAGE_TAG}"
                         echo "\$HARBOR_PASS" | docker login -u "\$HARBOR_USER" --password-stdin "\$HARBOR_HOST"
                         docker build -f docker-context/Dockerfile -t "\$IMAGE_FULL" docker-context
                         docker push "\$IMAGE_FULL"
