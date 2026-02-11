@@ -5,7 +5,7 @@ pipeline {
         // Nexus 기본 주소 (호스트 부분만, 리포지토리 경로는 브랜치별로 분기)
         NEXUS_BASE = 'http://nexus.internal:8081'
         // Harbor (이미지 푸시용) - 필요 시 Jenkins 환경변수로 덮어쓰기
-        HARBOR_URL = 'http://pjjharbor.com:80'
+        HARBOR_URL = 'http://pjjharbor.com'
         HARBOR_PROJECT = 'income-backend'
         ARTIFACT_GROUP = 'com/example'
         ARTIFACT_ID = 'toss-backend'
