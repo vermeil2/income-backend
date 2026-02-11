@@ -4,6 +4,11 @@ pipeline {
     environment {
         // Nexus 기본 주소 (호스트 부분만, 리포지토리 경로는 브랜치별로 분기)
         NEXUS_BASE = 'http://nexus.internal:8081'
+        // Harbor (이미지 푸시용) - 필요 시 Jenkins 환경변수로 덮어쓰기
+        HARBOR_URL = 'http://harbor.internal'
+        HARBOR_PROJECT = 'income-backend'
+        ARTIFACT_GROUP = 'com/example'
+        ARTIFACT_ID = 'toss-backend'
     }
     
     stages {
@@ -61,6 +66,58 @@ pipeline {
                             -PnexusUrl=${env.NEXUS_URL} \
                             -PnexusUsername=\$NEXUS_USER \
                             -PnexusPassword=\$NEXUS_PASS
+                    """
+                }
+            }
+        }
+
+        stage('Download JAR from Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-credentials',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh """
+                        set -e
+                        MAVEN_PATH="${env.ARTIFACT_GROUP}/${env.ARTIFACT_ID}/${env.PUBLISH_VERSION}"
+                        METADATA_URL="${env.NEXUS_URL}\${MAVEN_PATH}/maven-metadata.xml"
+                        mkdir -p docker-context
+
+                        if echo "${env.PUBLISH_VERSION}" | grep -q SNAPSHOT; then
+                          curl -sS -u "\$NEXUS_USER:\$NEXUS_PASS" "\$METADATA_URL" -o docker-context/maven-metadata.xml
+                          SNAPSHOT_VER=\$(sed -n 's/.*<value>\\([^<]*SNAPSHOT[^<]*\\)<\\/value>.*/\\1/p' docker-context/maven-metadata.xml | tail -1)
+                          JAR_NAME="${env.ARTIFACT_ID}-\${SNAPSHOT_VER}.jar"
+                        else
+                          JAR_NAME="${env.ARTIFACT_ID}-${env.PUBLISH_VERSION}.jar"
+                        fi
+
+                        JAR_URL="${env.NEXUS_URL}\${MAVEN_PATH}/\${JAR_NAME}"
+                        curl -sS -u "\$NEXUS_USER:\$NEXUS_PASS" "\$JAR_URL" -o "docker-context/\$JAR_NAME"
+                        cp Dockerfile docker-context/
+                        echo "Downloaded: \$JAR_NAME"
+                    """
+                }
+            }
+        }
+
+        stage('Docker Build & Push to Harbor') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'harbor-credentials',
+                    usernameVariable: 'HARBOR_USER',
+                    passwordVariable: 'HARBOR_PASS'
+                )]) {
+                    sh """
+                        set -e
+                        IMAGE_TAG="${env.ARTIFACT_ID}:${env.PUBLISH_VERSION}-${env.BUILD_NUMBER}"
+                        IMAGE_FULL="${env.HARBOR_URL}/${env.HARBOR_PROJECT}/\${IMAGE_TAG}"
+                        HARBOR_HOST=\$(echo "${env.HARBOR_URL}" | sed 's|https\\?://||')
+                        echo "\$HARBOR_PASS" | docker login -u "\$HARBOR_USER" --password-stdin "\$HARBOR_HOST"
+                        docker build -f docker-context/Dockerfile -t "\$IMAGE_FULL" docker-context
+                        docker push "\$IMAGE_FULL"
+                        docker logout "\$HARBOR_HOST"
+                        echo "Pushed: \$IMAGE_FULL"
                     """
                 }
             }
