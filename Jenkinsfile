@@ -60,6 +60,7 @@ pipeline {
                         SONAR_TOKEN=\${SONAR_AUTH_TOKEN:-$SONAR_TOKEN}
                         ./gradlew sonar \
                             -Pversion=${env.PUBLISH_VERSION} \
+                            -Dsonar.gradle.skipCompile=true \
                             -Dsonar.host.url=\$SONAR_HOST_URL \
                             -Dsonar.token=\$SONAR_TOKEN
                     """
