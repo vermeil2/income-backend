@@ -67,6 +67,75 @@ pipeline {
             }
         }
 
+        // Quality Gate 확인 및 Slack 알림
+        // Slack 알림을 사용하려면 Jenkins 환경 변수 SLACK_WEBHOOK_URL 설정 또는
+        // 자격 증명 'slack-webhook-url' (Secret text) 등록 필요
+        stage('Quality Gate') {
+            steps {
+                script {
+                    def qg = waitForQualityGate abortPipeline: false
+                    
+                    // Quality Gate 결과에 따른 Slack 알림 (선택사항)
+                    def slackWebhookUrl = env.SLACK_WEBHOOK_URL
+                    
+                    if (slackWebhookUrl) {
+                        def branch = env.BRANCH_NAME ?: env.GIT_BRANCH?.replace('origin/', '') ?: 'dev'
+                        def status = qg.status
+                        def statusEmoji = status == 'OK' ? '✅' : '❌'
+                        def statusText = status == 'OK' ? '통과' : '실패'
+                        def color = status == 'OK' ? 'good' : 'danger'
+                        
+                        def payload = """
+                        {
+                            "text": "${statusEmoji} SonarQube Quality Gate ${statusText}",
+                            "attachments": [
+                                {
+                                    "color": "${color}",
+                                    "fields": [
+                                        {
+                                            "title": "프로젝트",
+                                            "value": "${env.ARTIFACT_ID}",
+                                            "short": true
+                                        },
+                                        {
+                                            "title": "브랜치",
+                                            "value": "${branch}",
+                                            "short": true
+                                        },
+                                        {
+                                            "title": "빌드 번호",
+                                            "value": "#${env.BUILD_NUMBER}",
+                                            "short": true
+                                        },
+                                        {
+                                            "title": "Quality Gate 상태",
+                                            "value": "${status}",
+                                            "short": true
+                                        }
+                                    ],
+                                    "footer": "Jenkins",
+                                    "ts": ${System.currentTimeMillis() / 1000}
+                                }
+                            ]
+                        }
+                        """.trim()
+                        
+                        sh """
+                            curl -X POST -H 'Content-type: application/json' \
+                                --data '${payload}' \
+                                ${slackWebhookUrl}
+                        """
+                    }
+                    
+                    // Quality Gate 실패 시 파이프라인 실패 처리 (선택사항)
+                    // abortPipeline: false로 설정했으므로 여기서 명시적으로 실패 처리
+                    if (qg.status != 'OK') {
+                        error("SonarQube Quality Gate failed: ${qg.status}")
+                    }
+                }
+            }
+        }
+
         // SonarQube 브랜치 테스트용: Nexus/Harbor 단계 비활성화 (복구 시 when 블록 삭제)
         stage('Publish to Nexus') {
             when { expression { return false } }
