@@ -3,6 +3,7 @@ plugins {
     kotlin("plugin.spring") version "2.2.21"
     id("org.springframework.boot") version "4.0.2"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.sonarqube") version "4.4.1.3373"
     `maven-publish`
 }
 
@@ -64,5 +65,14 @@ publishing {
                 password = project.findProperty("nexusPassword") as String? ?: ""
             }
         }
+    }
+}
+
+// SonarQube 정적 분석 (Jenkins에서 sonar.host.url, sonar.token 주입)
+sonar {
+    properties {
+        property("sonar.projectKey", "income-backend")
+        property("sonar.projectName", "income-backend")
+        property("sonar.sourceEncoding", "UTF-8")
     }
 }
