@@ -52,6 +52,21 @@ pipeline {
             }
         }
 
+        // 정적 코드 분석: Jenkins에 등록한 SonarQube 서버 이름과 일치시킬 것 (기본: SonarQube)
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        SONAR_TOKEN=\${SONAR_AUTH_TOKEN:-$SONAR_TOKEN}
+                        ./gradlew sonar \
+                            -Pversion=${env.PUBLISH_VERSION} \
+                            -Dsonar.host.url=\$SONAR_HOST_URL \
+                            -Dsonar.token=\$SONAR_TOKEN
+                    """
+                }
+            }
+        }
+
         stage('Publish to Nexus') {
             steps {
                 withCredentials([usernamePassword(
