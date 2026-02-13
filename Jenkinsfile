@@ -73,64 +73,88 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 script {
-                    def qg = waitForQualityGate abortPipeline: false
-                    
-                    // Quality Gate 결과에 따른 Slack 알림 (선택사항)
-                    def slackWebhookUrl = env.SLACK_WEBHOOK_URL
-                    
-                    if (slackWebhookUrl) {
-                        def branch = env.BRANCH_NAME ?: env.GIT_BRANCH?.replace('origin/', '') ?: 'dev'
-                        def status = qg.status
-                        def statusEmoji = status == 'OK' ? '✅' : '❌'
-                        def statusText = status == 'OK' ? '통과' : '실패'
-                        def color = status == 'OK' ? 'good' : 'danger'
+                    // SonarQube 서버가 분석 결과를 처리하는 동안 대기 (최대 10분)
+                    timeout(time: 10, unit: 'MINUTES') {
+                        def qg = waitForQualityGate abortPipeline: false
+                        echo "=== Quality Gate 상태: ${qg.status} ==="
                         
-                        def payload = """
-                        {
-                            "text": "${statusEmoji} SonarQube Quality Gate ${statusText}",
-                            "attachments": [
-                                {
-                                    "color": "${color}",
-                                    "fields": [
-                                        {
-                                            "title": "프로젝트",
-                                            "value": "${env.ARTIFACT_ID}",
-                                            "short": true
-                                        },
-                                        {
-                                            "title": "브랜치",
-                                            "value": "${branch}",
-                                            "short": true
-                                        },
-                                        {
-                                            "title": "빌드 번호",
-                                            "value": "#${env.BUILD_NUMBER}",
-                                            "short": true
-                                        },
-                                        {
-                                            "title": "Quality Gate 상태",
-                                            "value": "${status}",
-                                            "short": true
-                                        }
-                                    ],
-                                    "footer": "Jenkins",
-                                    "ts": ${System.currentTimeMillis() / 1000}
+                        // Quality Gate 결과에 따른 Slack 알림 (성공/실패 모두 전송)
+                        def slackWebhookUrl = env.SLACK_WEBHOOK_URL
+                        
+                        if (slackWebhookUrl) {
+                            echo "=== Slack 알림 전송 시도 ==="
+                            def branch = env.BRANCH_NAME ?: env.GIT_BRANCH?.replace('origin/', '') ?: 'dev'
+                            def status = qg.status
+                            def statusEmoji = status == 'OK' ? '✅' : '❌'
+                            def statusText = status == 'OK' ? '통과' : '실패'
+                            def color = status == 'OK' ? 'good' : 'danger'
+                            
+                            def payload = """
+                            {
+                                "text": "${statusEmoji} SonarQube Quality Gate ${statusText}",
+                                "attachments": [
+                                    {
+                                        "color": "${color}",
+                                        "fields": [
+                                            {
+                                                "title": "프로젝트",
+                                                "value": "${env.ARTIFACT_ID}",
+                                                "short": true
+                                            },
+                                            {
+                                                "title": "브랜치",
+                                                "value": "${branch}",
+                                                "short": true
+                                            },
+                                            {
+                                                "title": "빌드 번호",
+                                                "value": "#${env.BUILD_NUMBER}",
+                                                "short": true
+                                            },
+                                            {
+                                                "title": "Quality Gate 상태",
+                                                "value": "${status}",
+                                                "short": true
+                                            }
+                                        ],
+                                        "footer": "Jenkins",
+                                        "ts": ${System.currentTimeMillis() / 1000}
+                                    }
+                                ]
+                            }
+                            """.trim()
+                            
+                            try {
+                                def curlResult = sh(
+                                    script: """
+                                        curl -X POST -H 'Content-type: application/json' \
+                                            --data '${payload}' \
+                                            --write-out '%{http_code}' \
+                                            --silent --show-error \
+                                            ${slackWebhookUrl}
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+                                
+                                echo "Slack 알림 전송 결과 HTTP 코드: ${curlResult}"
+                                if (curlResult == '200') {
+                                    echo "✅ Slack 알림 전송 성공"
+                                } else {
+                                    echo "⚠️ Slack 알림 전송 실패 (HTTP ${curlResult})"
                                 }
-                            ]
+                            } catch (Exception e) {
+                                echo "❌ Slack 알림 전송 중 오류: ${e.message}"
+                            }
+                        } else {
+                            echo "⚠️ SLACK_WEBHOOK_URL 환경 변수가 설정되지 않아 Slack 알림을 전송하지 않습니다."
+                            echo "   Slack 알림을 사용하려면 Jenkins → Manage Jenkins → Configure System → Global properties → Environment variables에 SLACK_WEBHOOK_URL을 추가하세요."
                         }
-                        """.trim()
                         
-                        sh """
-                            curl -X POST -H 'Content-type: application/json' \
-                                --data '${payload}' \
-                                ${slackWebhookUrl}
-                        """
-                    }
-                    
-                    // Quality Gate 실패 시 파이프라인 실패 처리 (선택사항)
-                    // abortPipeline: false로 설정했으므로 여기서 명시적으로 실패 처리
-                    if (qg.status != 'OK') {
-                        error("SonarQube Quality Gate failed: ${qg.status}")
+                        // Quality Gate 실패 시 파이프라인 실패 처리 (선택사항)
+                        // abortPipeline: false로 설정했으므로 여기서 명시적으로 실패 처리
+                        if (qg.status != 'OK') {
+                            error("SonarQube Quality Gate failed: ${qg.status}")
+                        }
                     }
                 }
             }
