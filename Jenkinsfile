@@ -67,9 +67,9 @@ pipeline {
             }
         }
 
-        // ----- SonarQube 브랜치 테스트용: Nexus/Harbor 단계 일시 비활성화 (복구 시 아래 주석 해제) -----
-        /*
+        // SonarQube 브랜치 테스트용: Nexus/Harbor 단계 비활성화 (복구 시 when 블록 삭제)
         stage('Publish to Nexus') {
+            when { expression { return false } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'nexus-credentials',
@@ -89,6 +89,7 @@ pipeline {
         }
 
         stage('Download JAR from Nexus') {
+            when { expression { return false } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'nexus-credentials',
@@ -119,6 +120,7 @@ pipeline {
         }
 
         stage('Docker Build & Push to Harbor') {
+            when { expression { return false } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'harbor-credentials',
@@ -139,6 +141,5 @@ pipeline {
                 }
             }
         }
-        */
     }
 }
