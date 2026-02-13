@@ -69,10 +69,12 @@ publishing {
 }
 
 // SonarQube 정적 분석 (Jenkins에서 sonar.host.url, sonar.token 주입)
+// skipCompile: 이미 Build & Test 단계에서 컴파일되므로 sonar 태스크가 컴파일을 다시 하지 않도록 함 (5.x deprecation 대응)
 sonar {
     properties {
         property("sonar.projectKey", "income-backend")
         property("sonar.projectName", "income-backend")
         property("sonar.sourceEncoding", "UTF-8")
+        property("sonar.gradle.skipCompile", "true")
     }
 }
